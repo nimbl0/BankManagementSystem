@@ -10,12 +10,12 @@ struct Date {
 };
 
 struct Customer {
-    const char *firstName;
-    const char *lastName;
+    const char* firstName;
+    const char* lastName;
 
     unsigned int monthlyIncome;
 
-    struct Date *dateOfBirth;
+    struct Date* dateOfBirth;
 };
 
 struct BankAccount {
@@ -26,20 +26,20 @@ struct BankAccount {
 };
 
 struct Bank {
-    const char *name;
+    const char* name;
 
     unsigned int capacity;
     unsigned int registeredAccounts;
     unsigned int registerBonus;
 
-    struct BankAccount **accounts;
+    struct BankAccount** accounts;
 };
 
 /**
  * @return current Date as Date struct
  */
-struct Date *getCurrentDate() {
-    struct Date *currentDate = malloc(sizeof(struct Date));
+struct Date* getCurrentDate() {
+    struct Date* currentDate = malloc(sizeof(struct Date));
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     currentDate->day = tm.tm_mday;
@@ -56,10 +56,9 @@ struct Date *getCurrentDate() {
  * @param year
  * @return Date struct
  */
-struct Date *createDate(unsigned int day, unsigned int month, unsigned int year) {
-    struct Date *dateOfBirth = malloc(sizeof(struct Date));
+struct Date* createDate(unsigned int day, unsigned int month, unsigned int year) {
+    struct Date* dateOfBirth = malloc(sizeof(struct Date));
 
-    // get current year
     unsigned int currentYear = getCurrentDate()->year;
 
     dateOfBirth->day = day;
@@ -101,7 +100,6 @@ unsigned int getAge(unsigned int year) {
 }
 
 /**
- *
  * @param dateOfBirth of the person you want to know the age of
  * @return 1 if person is of legal age, 0 if person isn't of legal age
  */
@@ -114,7 +112,7 @@ unsigned int isOfLegalAge(unsigned int year) {
  * @param id the id to check if it's unique
  * @return 1 if is unique, 0 if is not unique
  */
-int idIsUnique(struct Bank *bank, unsigned int id) {
+int idIsUnique(struct Bank* bank, unsigned int id) {
     for (int i = 0; i < bank->registeredAccounts; i++) {
         if (bank->accounts[i]->id == id) {
             return 0;
@@ -129,11 +127,11 @@ int idIsUnique(struct Bank *bank, unsigned int id) {
  * @param upper
  * @return unique id
  */
-unsigned int createId(struct Bank *bank) {
-    unsigned int id = (rand() % (bank->capacity - 0)) + 0;
+unsigned int createId(struct Bank* bank) {
+    unsigned int id = (rand() % bank->capacity);
 
     while (idIsUnique(bank, id) == 0) {
-        id = (rand() % (bank->capacity - 0)) + 0;
+        id = (rand() % bank->capacity);
     }
 
     return id;
@@ -146,7 +144,7 @@ unsigned int createId(struct Bank *bank) {
  * @param dateOfBirth
  * @return pointer to Customer struct
  */
-struct Customer* createCustomer(const char *firstName, const char *lastName, struct Date *dateOfBirth, unsigned int income) {
+struct Customer* createCustomer(const char* firstName, const char* lastName, struct Date* dateOfBirth, unsigned int income) {
     struct Customer* customer = malloc(sizeof(struct Customer));
 
     if (strcmp(firstName, "") == 0) {
@@ -177,7 +175,7 @@ struct Customer* createCustomer(const char *firstName, const char *lastName, str
  * @param registerBonus the bonus every customer gets when he registeres
  * @return pointer to the created bank
  */
-struct Bank *createBank(const char *name, unsigned int capacity, unsigned int registerBonus) {
+struct Bank* createBank(const char* name, unsigned int capacity, unsigned int registerBonus) {
     struct Bank* bank = malloc(sizeof(struct Bank));
     bank->name = name;
     bank->capacity = capacity;
@@ -188,15 +186,20 @@ struct Bank *createBank(const char *name, unsigned int capacity, unsigned int re
 }
 
 /**
- *
  * @param bank The bank to check for the account
  * @param customer The customer that wants to open an account
  * @return 1 if customer already has account, 0 if customer has no account
  */
-int customerHasAccount(struct Bank *bank, struct Customer *customer) {
+int customerHasAccount(struct Bank* bank, struct Customer* customer) {
     for (int i = 0; i < bank->registeredAccounts; i++) {
-        struct Customer *owner = bank->accounts[i]->owner;
-        if (owner->firstName == customer->firstName && owner->lastName == customer->lastName) {
+        struct Date* dateOfBirth = customer->dateOfBirth;
+        struct Customer* owner = bank->accounts[i]->owner;
+
+        int dateOfBirthMatches = dateOfBirth->day == owner->dateOfBirth->day
+                && dateOfBirth->month == owner->dateOfBirth->month
+                && dateOfBirth->year == owner->dateOfBirth->year;
+
+        if (owner->firstName == customer->firstName && owner->lastName == customer->lastName && (dateOfBirthMatches == 1)) {
             return 1;
         }
     }
@@ -208,7 +211,7 @@ int customerHasAccount(struct Bank *bank, struct Customer *customer) {
  * @param customer the customer the account belongs to
  * @return -1 if error occured, 0 if creation was successfull
  */
-int createBankAccount(struct Bank *bank, struct Customer *customer) {
+int createBankAccount(struct Bank* bank, struct Customer* customer) {
     if(customerHasAccount(bank, customer)) {
         printf("Customer already has account!\n");
         return -1;
@@ -225,7 +228,7 @@ int createBankAccount(struct Bank *bank, struct Customer *customer) {
     }
 
     // allocates memory for BankAccount
-    struct BankAccount *account = malloc(sizeof(struct BankAccount));
+    struct BankAccount* account = malloc(sizeof(struct BankAccount));
     // set owner of account
     account->owner = customer;
 
@@ -330,7 +333,7 @@ char* getBankDetails(struct Bank* bank) {
         strcat(detailsString, "{");
         struct BankAccount* account = bank->accounts[i];
         struct Customer* owner = account->owner;
-        // [{id=1;balance=100;Owner={First Name=Marcel;Last Name=K;Birthday={Day=1;Month=7;Year=2002};}}}]
+
         allocate = 200;
         char* accountStr = malloc(allocate);
         sprintf(accountStr, "ID=%i;Balance=%f;Owner={First Name=%s;Last Name=%s;Birthday={Day=%i;Month=%i;Year=%i}}",
@@ -376,23 +379,22 @@ char* readFromFile(const char* bankName) {
 }
 
 void getValueFromBankString(const char* bankName, const char* valueName) {
-    
+    char* bankFile = readFromFile(bankName);
 }
 
 int main(void) {
     struct Bank* bank = createBank("Sparkasse", 3, 100);
     struct Customer* marcel = createCustomer("Marcel", "K", createDate(1, 7, 2002), 450);
-    struct Customer* anna = createCustomer("Anna", "B", createDate(27, 9, 2001), 300);
+    struct Customer* anna = createCustomer("Penis", "Kopf", createDate(28, 3, 1990), 0);
 
     createBankAccount(bank, marcel);
     createBankAccount(bank, anna);
 
     updateBalance(bank->accounts[0], 10);
 
+    printf("%s\n", getBankDetails(bank));
+
     saveBankToFile(bank);
-
-    char* bankFile = readFromFile(bank->name);
-
 
     free(anna);
     free(marcel);
