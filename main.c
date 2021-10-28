@@ -39,7 +39,7 @@ struct Bank {
  * @return current Date as Date struct
  */
 struct Date *getCurrentDate() {
-    struct Date *currentDate = malloc(sizeof(struct Date *));
+    struct Date *currentDate = malloc(sizeof(struct Date));
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     currentDate->day = tm.tm_mday;
@@ -57,7 +57,7 @@ struct Date *getCurrentDate() {
  * @return Date struct
  */
 struct Date *createDate(unsigned int day, unsigned int month, unsigned int year) {
-    struct Date *dateOfBirth = malloc(sizeof(struct Date *));
+    struct Date *dateOfBirth = malloc(sizeof(struct Date));
 
     // get current year
     unsigned int currentYear = getCurrentDate()->year;
@@ -147,7 +147,7 @@ unsigned int createId(struct Bank *bank) {
  * @return pointer to Customer struct
  */
 struct Customer* createCustomer(const char *firstName, const char *lastName, struct Date *dateOfBirth, unsigned int income) {
-    struct Customer *customer = malloc(sizeof(struct Customer*));
+    struct Customer* customer = malloc(sizeof(struct Customer));
 
     if (strcmp(firstName, "") == 0) {
         printf("Please input a valid first name!\n");
@@ -178,11 +178,11 @@ struct Customer* createCustomer(const char *firstName, const char *lastName, str
  * @return pointer to the created bank
  */
 struct Bank *createBank(const char *name, unsigned int capacity, unsigned int registerBonus) {
-    struct Bank *bank = malloc(sizeof(struct Bank *));
+    struct Bank* bank = malloc(sizeof(struct Bank));
     bank->name = name;
     bank->capacity = capacity;
     bank->registeredAccounts = 0;
-    bank->accounts = malloc(sizeof(struct BankAccount*) * capacity);
+    bank->accounts = malloc(sizeof(struct BankAccount) * capacity);
     bank->registerBonus = registerBonus;
     return bank;
 }
@@ -225,7 +225,7 @@ int createBankAccount(struct Bank *bank, struct Customer *customer) {
     }
 
     // allocates memory for BankAccount
-    struct BankAccount *account = malloc(sizeof(struct BankAccount *));
+    struct BankAccount *account = malloc(sizeof(struct BankAccount));
     // set owner of account
     account->owner = customer;
 
@@ -303,233 +303,99 @@ struct BankAccount* getAccountById(struct Bank* bank, unsigned int id) {
     return NULL;
 }
 
-/**
- * @param bank print the details of given Bank
- */
-void printBankDetails(struct Bank *bank) {
-    /*
-    char* bankDetails = malloc(100);
+char* getBankDetails(struct Bank* bank) {
+    char* detailsString = malloc(15);
+    sprintf(detailsString, "Name=%s\n", bank->name);
 
-    strcat(bankDetails, "{\n");
+    unsigned int allocate = 15;
 
+    char* capacity = malloc(allocate);
+    sprintf(capacity, "Capacity=%i\n", bank->capacity);
+    detailsString = realloc(detailsString, strlen(detailsString) + allocate);
+    strcat(detailsString, capacity);
 
-    const int tabSize = 8;
+    allocate = 40;
+    char* registeredAccounts = malloc(allocate);
+    sprintf(registeredAccounts, "Registered Accounts=%i\n", bank->registeredAccounts);
+    detailsString = realloc(detailsString, strlen(detailsString) + allocate);
+    strcat(detailsString, registeredAccounts);
 
-    char* bankName = malloc(tabSize + 14 + sizeof(bank->name));
-    sprintf(bankName, "\t\"Name\": \"%s\",\n", bank->name);
-    printf("size: %i\n", sizeof(bankDetails) + sizeof(bankName));
-    // realloc(bankDetails, sizeof(bankDetails) + sizeof(bankName));
-    strcat(bankDetails, bankName);
+    char* registerBonus = malloc(allocate);
+    sprintf(registerBonus, "Register Bonus=%i\n", bank->registerBonus);
+    detailsString = realloc(detailsString, strlen(detailsString) + allocate);
+    strcat(detailsString, registerBonus);
 
-
-    char* capacity = malloc(tabSize + 20 + sizeof(bank->capacity));
-    sprintf(capacity, "\t\"Capacity\": \"%i\",\n", bank->capacity);
-    realloc(bankDetails, sizeof(bankDetails) + sizeof(capacity));
-    strcat(bankDetails, capacity);
-
-
-    char* registerBonus = malloc(tabSize + 25 + sizeof(bank->registerBonus));
-    sprintf(registerBonus, "\t\"Register Bonus\": \"%i\",\n", bank->registerBonus);
-    realloc(bankDetails, sizeof(bankDetails) + sizeof(registerBonus));
-    strcat(bankDetails, registerBonus);
-
-    char* registeredAccounts = malloc(tabSize + 30 + sizeof(bank->registeredAccounts));
-    sprintf(registeredAccounts, "\t\"Registered Accounts\": \"%i\",\n", bank->registeredAccounts);
-    realloc(bankDetails, sizeof(bankDetails) + sizeof(registeredAccounts));
-    strcat(bankDetails, registeredAccounts);
-
-    char* accountStr = malloc(tabSize + 15);
-    sprintf(accountStr, "\t\"Accounts\": [\n");
-    realloc(bankDetails, sizeof(bankDetails) + sizeof(accountStr));
-    strcat(bankDetails, accountStr);
-
-
+    strcat(detailsString, "[");
     for(int i = 0; i < bank->registeredAccounts; i++) {
+        strcat(detailsString, "{");
         struct BankAccount* account = bank->accounts[i];
-
-        char* openAccountDetailsStr = malloc((tabSize*2) + 5);
-        sprintf(openAccountDetailsStr, "\t\t{\n");
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(openAccountDetailsStr));
-        strcat(bankDetails, openAccountDetailsStr);
-
-        char* id = malloc((tabSize*3) + 15 + sizeof(account->id));
-        sprintf(id, "\t\t\t\"ID\": \"%i\",\n", account->id);
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(id));
-        strcat(bankDetails, id);
-
-        char* ownerOpeningString = malloc((tabSize*3) + 15);
-        sprintf(ownerOpeningString, "\t\t\t\"Owner\": {\n");
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(ownerOpeningString));
-        strcat(bankDetails, ownerOpeningString);
-
-        // OWNER
         struct Customer* owner = account->owner;
+        // [{id=1;balance=100;Owner={First Name=Marcel;Last Name=K;Birthday={Day=1;Month=7;Year=2002};}}}]
+        allocate = 200;
+        char* accountStr = malloc(allocate);
+        sprintf(accountStr, "ID=%i;Balance=%f;Owner={First Name=%s;Last Name=%s;Birthday={Day=%i;Month=%i;Year=%i}}",
+                account->id,
+                account->balance,
+                owner->firstName,
+                owner->lastName,
+                owner->dateOfBirth->day,
+                owner->dateOfBirth->month,
+                owner->dateOfBirth->year);
+        strcat(detailsString, accountStr);
 
-        char* ownerFirstName = malloc((tabSize*4) + 25 + sizeof(owner->firstName));
-        sprintf(ownerFirstName, "\t\t\t\t\"First Name\": \"%s\",\n", owner->firstName);
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(ownerFirstName));
-        strcat(bankDetails, ownerFirstName);
-
-
-        char* ownerLastName = malloc((tabSize*4) + 25 + sizeof(owner->lastName));
-        sprintf(ownerLastName, "\t\t\t\t\"Last Name\": \"%s\",\n", owner->lastName);
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(ownerLastName));
-        strcat(bankDetails, ownerLastName);
-
-
-        char* ageOpeningStr = malloc((tabSize*4) + 10);
-        sprintf(ageOpeningStr, "\t\t\t\t\"Age\": {\n");
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(ageOpeningStr));
-        strcat(bankDetails, ageOpeningStr);
-
-        char* dateOfBirthDay = malloc((tabSize*5) + 15);
-        sprintf(dateOfBirthDay, "\t\t\t\t\t\"Day\": \"%i\",\n", owner->dateOfBirth->day);
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(dateOfBirthDay));
-        strcat(bankDetails, dateOfBirthDay);
-
-
-        char* dateOfBirthMonth = malloc((tabSize*5) + 20);
-        sprintf(dateOfBirthMonth, "\t\t\t\t\t\"Month\": \"%i\",\n", owner->dateOfBirth->month);
-        realloc(bankDetails, sizeof(bankDetails) + sizeof(dateOfBirthMonth));
-        strcat(bankDetails, dateOfBirthMonth);
-
-
-        char* dateOfBirthYear = malloc((tabSize*5) + 20);
-        sprintf(dateOfBirthYear, "\t\t\t\t\t\"Year\": \"%i\",\n", owner->dateOfBirth->year);
-        strcat(bankDetails, dateOfBirthYear);
-
-        char* currentAge = malloc((tabSize*5) + 25 + sizeof(getAge(owner->dateOfBirth->year)));
-        sprintf(currentAge, "\t\t\t\t\t\"Current Age\": \"%i\"\n", getAge(owner->dateOfBirth->year));
-        strcat(bankDetails, currentAge);
-
-        char* ageCloseStr = malloc((tabSize*4) + 5);
-        sprintf(ageCloseStr, "\t\t\t\t}\n");
-        strcat(bankDetails, ageCloseStr);
-
-        char* ownerCloseStr = malloc((tabSize*3) + 5);
-        sprintf(ownerCloseStr, "\t\t\t},\n");
-        strcat(bankDetails, ownerCloseStr);
-
-        char* balance = malloc((tabSize*3) + 30 + sizeof(account->balance));
-        sprintf(balance, "\t\t\t\"Balance\": \"%f\"\n", account->balance);
-        strcat(bankDetails, balance);
-
-        char* closeAccountDetailsStr = malloc((tabSize*2) + 10);
-        if (i + 1 == bank->registeredAccounts) {
-            sprintf(closeAccountDetailsStr, "\t\t}\n");
+        if(i+1 == bank->registeredAccounts) {
+            strcat(detailsString, "}");
         } else {
-            sprintf(closeAccountDetailsStr, "\t\t},\n");
-        }
-        strcat(bankDetails, closeAccountDetailsStr);
-
-    }
-
-
-    char* closeAccountsArray = malloc(tabSize + 5);
-    sprintf(closeAccountsArray, "\t]\n");
-    strcat(bankDetails, closeAccountsArray);
-
-
-    char* closeFileStr = malloc(5);
-    sprintf(closeFileStr, "}\n");
-    strcat(bankDetails, closeFileStr);
-
-    printf("%s\n", bankDetails);
-    */
-    /*
-    printf("{\n");
-        printf("\t\"Name\": \"%s\",\n", bank->name);
-        printf("\t\"Capacity\": \"%i\",\n", bank->capacity);
-        printf("\t\"Register Bonus\": \"%i\",\n", bank->registerBonus);
-
-        // All about the accounts
-        printf("\t\"Registered Accounts\": \"%i\",\n", bank->registeredAccounts);
-        printf("\t\"Accounts\": [\n");
-    for (int i = 0; i < bank->registeredAccounts; i++) {
-        struct BankAccount *account = bank->accounts[i];
-            printf("\t\t{\n");
-                printf("\t\t\t\"ID\": \"%i\",\n", account->id);
-
-                // ======= Details of Owner =======
-                printf("\t\t\t\"Owner\": {\n");
-                struct Customer *owner = account->owner;
-                    printf("\t\t\t\t\"First Name\": \"%s\",\n", owner->firstName);
-                    printf("\t\t\t\t\"Last Name\": \"%s\",\n", owner->lastName);
-
-                    // age object
-                    printf("\t\t\t\t\"Age\": {\n");
-                        printf("\t\t\t\t\t\"Day\": \"%i\",\n", owner->dateOfBirth->day);
-                        printf("\t\t\t\t\t\"Month\": \"%i\",\n", owner->dateOfBirth->month);
-                        printf("\t\t\t\t\t\"Year\": \"%i\",\n", owner->dateOfBirth->year);
-                        printf("\t\t\t\t\t\"Current Age\": \"%i\"\n", getAge(owner->dateOfBirth->year));
-                    printf("\t\t\t\t}\n");
-
-                printf("\t\t\t},\n");
-                // ================================
-
-                printf("\t\t\t\"Balance\": \"%f\"\n", account->balance);
-
-        if (i + 1 == bank->registeredAccounts) {
-            printf("\t\t}\n");
-        } else {
-            printf("\t\t},\n");
+            strcat(detailsString, "},\n");
         }
     }
-    printf("\t]\n");
-    printf("}\n");
-    */
-}
+    strcat(detailsString, "]");
 
-/**
- *
- * @param account The account you want to print the details of
- */
-void printDetailsOfBankAccount(struct BankAccount* account) {
-    if(account == NULL) {
-        return;
-    }
-    printf("{\n");
-    printf("\t\"ID\": \"%i\",\n", account->id);
-
-    // ======= Details of Owner =======
-    printf("\t\"Owner\": {\n");
-    struct Customer *owner = account->owner;
-    printf("\t\t\"First Name\": \"%s\",\n", owner->firstName);
-    printf("\t\t\"Last Name\": \"%s\",\n", owner->lastName);
-
-    // age object
-    printf("\t\t\"Age\": {\n");
-    printf("\t\t\t\"Day\": \"%i\",\n", owner->dateOfBirth->day);
-    printf("\t\t\t\"Month\": \"%i\",\n", owner->dateOfBirth->month);
-    printf("\t\t\t\"Year\": \"%i\",\n", owner->dateOfBirth->year);
-    printf("\t\t\t\"Current Age\": \"%i\"\n", getAge(owner->dateOfBirth->year));
-    printf("\t\t}\n");
-
-    printf("\t},\n");
-    // ================================
-
-    printf("\t\"Balance\": \"%f\"\n", account->balance);
-    printf("}\n");
+    return detailsString;
 }
 
 void saveBankToFile(struct Bank* bank) {
-
+    FILE* out = fopen(bank->name, "w");
+    fputs(getBankDetails(bank), out);
+    fclose(out);
 }
 
-int main() {
+char* readFromFile(const char* bankName) {
+    char* buf = malloc(1024);
+    size_t nread;
+    FILE* file = fopen(bankName, "r");
+
+    if(buf == NULL) {
+        return "Buffer is null, idk why. Fix your shit.";
+    }
+
+    while((nread = fread(buf, 1, 1024, file)) > 0);
+    fclose(file);
+
+    return buf;
+}
+
+void getValueFromBankString(const char* bankName, const char* valueName) {
+    
+}
+
+int main(void) {
     struct Bank* bank = createBank("Sparkasse", 3, 100);
-    // struct Customer* marcel = createCustomer("Marcel", "K", createDate(1, 7, 2002), 450);
-    // struct Customer *anna = createCustomer("Anna", "B", createDate(27, 9, 2001), 300);
+    struct Customer* marcel = createCustomer("Marcel", "K", createDate(1, 7, 2002), 450);
+    struct Customer* anna = createCustomer("Anna", "B", createDate(27, 9, 2001), 300);
 
-    // createBankAccount(bank, marcel);
-    // createBankAccount(bank, anna);
+    createBankAccount(bank, marcel);
+    createBankAccount(bank, anna);
 
-    // updateBalance(getAccountById(bank, 1), -10);
+    updateBalance(bank->accounts[0], 10);
 
-    // printBankDetails(bank);
+    saveBankToFile(bank);
 
-    // free(anna);
-    // free(marcel);
-    // free(bank);
+    char* bankFile = readFromFile(bank->name);
+
+
+    free(anna);
+    free(marcel);
+    free(bank);
     return 0;
 }
