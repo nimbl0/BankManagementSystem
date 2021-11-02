@@ -3,43 +3,56 @@
 #include <time.h>
 #include <string.h>
 
-struct Date {
+typedef struct {
     unsigned int day;
     unsigned int month;
     unsigned int year;
-};
+} Date;
 
-struct Customer {
+typedef struct {
     const char* firstName;
     const char* lastName;
 
     unsigned int monthlyIncome;
 
-    struct Date* dateOfBirth;
-};
+    Date* dateOfBirth;
+} Customer;
 
-struct BankAccount {
+typedef struct Transaction Transaction;
+
+typedef struct {
     unsigned int id;
     double balance;
 
-    struct Customer *owner;
+    Transaction** transactions;
+    int transactionCount;
+
+    Customer* owner;
+} BankAccount;
+
+struct Transaction {
+    BankAccount* sender;
+    BankAccount* receiver;
+
+    double amount;
+    const char* message;
 };
 
-struct Bank {
+typedef struct {
     const char* name;
 
     unsigned int capacity;
     unsigned int registeredAccounts;
     unsigned int registerBonus;
 
-    struct BankAccount** accounts;
-};
+    BankAccount** accounts;
+} Bank;
 
 /**
  * @return current Date as Date struct
  */
-struct Date* getCurrentDate() {
-    struct Date* currentDate = malloc(sizeof(struct Date));
+Date* getCurrentDate() {
+    Date* currentDate = malloc(sizeof(Date));
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     currentDate->day = tm.tm_mday;
@@ -56,8 +69,8 @@ struct Date* getCurrentDate() {
  * @param year
  * @return Date struct
  */
-struct Date* createDate(unsigned int day, unsigned int month, unsigned int year) {
-    struct Date* dateOfBirth = malloc(sizeof(struct Date));
+Date* createDate(unsigned int day, unsigned int month, unsigned int year) {
+    Date* dateOfBirth = malloc(sizeof(Date));
 
     unsigned int currentYear = getCurrentDate()->year;
 
@@ -112,7 +125,7 @@ unsigned int isOfLegalAge(unsigned int year) {
  * @param id the id to check if it's unique
  * @return 1 if is unique, 0 if is not unique
  */
-int idIsUnique(struct Bank* bank, unsigned int id) {
+int idIsUnique(Bank* bank, unsigned int id) {
     for (int i = 0; i < bank->registeredAccounts; i++) {
         if (bank->accounts[i]->id == id) {
             return 0;
@@ -127,7 +140,7 @@ int idIsUnique(struct Bank* bank, unsigned int id) {
  * @param upper
  * @return unique id
  */
-unsigned int createId(struct Bank* bank) {
+unsigned int createId(Bank* bank) {
     unsigned int id = (rand() % bank->capacity);
 
     while (idIsUnique(bank, id) == 0) {
@@ -144,8 +157,8 @@ unsigned int createId(struct Bank* bank) {
  * @param dateOfBirth
  * @return pointer to Customer struct
  */
-struct Customer* createCustomer(const char* firstName, const char* lastName, struct Date* dateOfBirth, unsigned int income) {
-    struct Customer* customer = malloc(sizeof(struct Customer));
+Customer* createCustomer(const char* firstName, const char* lastName, Date* dateOfBirth, unsigned int income) {
+    Customer* customer = malloc(sizeof(Customer));
 
     if (strcmp(firstName, "") == 0) {
         printf("Please input a valid first name!\n");
@@ -175,12 +188,12 @@ struct Customer* createCustomer(const char* firstName, const char* lastName, str
  * @param registerBonus the bonus every customer gets when he registeres
  * @return pointer to the created bank
  */
-struct Bank* createBank(const char* name, unsigned int capacity, unsigned int registerBonus) {
-    struct Bank* bank = malloc(sizeof(struct Bank));
+Bank* createBank(const char* name, unsigned int capacity, unsigned int registerBonus) {
+    Bank* bank = malloc(sizeof(Bank));
     bank->name = name;
     bank->capacity = capacity;
     bank->registeredAccounts = 0;
-    bank->accounts = malloc(sizeof(struct BankAccount) * capacity);
+    bank->accounts = malloc(sizeof(BankAccount) * capacity);
     bank->registerBonus = registerBonus;
     return bank;
 }
@@ -190,10 +203,10 @@ struct Bank* createBank(const char* name, unsigned int capacity, unsigned int re
  * @param customer The customer that wants to open an account
  * @return 1 if customer already has account, 0 if customer has no account
  */
-int customerHasAccount(struct Bank* bank, struct Customer* customer) {
+int customerHasAccount(Bank* bank, Customer* customer) {
     for (int i = 0; i < bank->registeredAccounts; i++) {
-        struct Date* dateOfBirth = customer->dateOfBirth;
-        struct Customer* owner = bank->accounts[i]->owner;
+        Date* dateOfBirth = customer->dateOfBirth;
+        Customer* owner = bank->accounts[i]->owner;
 
         int dateOfBirthMatches = dateOfBirth->day == owner->dateOfBirth->day
                 && dateOfBirth->month == owner->dateOfBirth->month
@@ -211,7 +224,7 @@ int customerHasAccount(struct Bank* bank, struct Customer* customer) {
  * @param customer the customer the account belongs to
  * @return -1 if error occured, 0 if creation was successfull
  */
-int createBankAccount(struct Bank* bank, struct Customer* customer) {
+int createBankAccount(Bank* bank, Customer* customer) {
     if(customerHasAccount(bank, customer)) {
         printf("Customer already has account!\n");
         return -1;
@@ -228,7 +241,7 @@ int createBankAccount(struct Bank* bank, struct Customer* customer) {
     }
 
     // allocates memory for BankAccount
-    struct BankAccount* account = malloc(sizeof(struct BankAccount));
+    BankAccount* account = malloc(sizeof(BankAccount));
     // set owner of account
     account->owner = customer;
 
@@ -237,6 +250,8 @@ int createBankAccount(struct Bank* bank, struct Customer* customer) {
 
     // set the accounts balance to the banks register bonus
     account->balance = bank->registerBonus;
+
+    account->transactionCount = 0;
 
     // if bank has 0 accounts, it should use 0 as index otherwise the count of the registered bank accounts
     if (bank->registeredAccounts == 0) {
@@ -255,14 +270,68 @@ int createBankAccount(struct Bank* bank, struct Customer* customer) {
  * @param amount
  * @return 0 if update was a success, -1 if some error occured
  */
-int updateBalance(struct BankAccount* account, int amount) {
+int updateBalance(BankAccount* account, double amount) {
     if(amount == 0) {
         printf("Please choose an amount greater than 0 to add money to your bank account "
                "or an amount smaller than 0 to remove money from your account!\n");
         return -1;
     }
+
     account->balance += amount;
+
     return 0;
+}
+
+const char* transactionAsString(Transaction* transaction) {
+    if(transaction == NULL) {
+        return "Please use a valid transaction.";
+    }
+
+    Customer* sender = transaction->sender->owner;
+    Customer* receiver = transaction->receiver->owner;
+
+    char* str = malloc(sizeof(Transaction) + (sizeof(Customer) * 3));
+
+    sprintf(str, "[Sender=%s %s;Receiver=%s %s;Amount=%f;Message=%s]",
+            sender->firstName, sender->lastName,
+            receiver->firstName, receiver->lastName,
+            transaction->amount, transaction->message);
+
+    return str;
+}
+
+// doesn't work, don't know why
+void allocateMemoryForTransaction(BankAccount* account, Transaction* transaction) {
+    if(account->transactions == NULL || account->transactionCount <= 0) {
+        account->transactions = malloc(sizeof(Transaction));
+        account->transactions[0] = transaction;
+    } else {
+        account->transactions = realloc(account->transactions, sizeof(Transaction) * (account->transactionCount+1));
+        account->transactions[account->transactionCount] = transaction;
+    }
+    account->transactionCount++;
+}
+
+int createTransaction(BankAccount* sender, BankAccount* receiver, double amount, const char* message) {
+    if((sender != receiver) && amount < 0) {
+        printf("You can't decrease the Balance of someone else!");
+        return -1;
+    }
+
+    Transaction* transaction = malloc(sizeof(Transaction));
+
+    transaction->sender = sender;
+    transaction->receiver = receiver;
+    transaction->amount = amount;
+    transaction->message = message;
+
+    updateBalance(sender, -amount);
+    updateBalance(receiver, amount);
+
+    allocateMemoryForTransaction(receiver, transaction);
+    allocateMemoryForTransaction(sender, transaction);
+
+    return 1;
 }
 
 /**
@@ -272,11 +341,11 @@ int updateBalance(struct BankAccount* account, int amount) {
  * @param dateOfBirth
  * @return BankAccount if something was found, otherwise NULL
  */
-struct BankAccount* getAccountByOwnerDetails(struct Bank* bank, const char* firstName, const char* lastName, struct Date* dateOfBirth) {
+BankAccount* getAccountByOwnerDetails(Bank* bank, const char* firstName, const char* lastName, Date* dateOfBirth) {
     for(int i = 0; i < bank->registeredAccounts; i++) {
-        struct BankAccount* account = bank->accounts[i];
-        struct Customer* owner = account->owner;
-        struct Date* ownerDate = owner->dateOfBirth;
+        BankAccount* account = bank->accounts[i];
+        Customer* owner = account->owner;
+        Date* ownerDate = owner->dateOfBirth;
 
         int dateMatches = ownerDate->day == dateOfBirth->day
                 && ownerDate->month == dateOfBirth->month
@@ -296,9 +365,9 @@ struct BankAccount* getAccountByOwnerDetails(struct Bank* bank, const char* firs
  * @param id ID of the account
  * @return BankAccount if something was found, otherwise NULL
  */
-struct BankAccount* getAccountById(struct Bank* bank, unsigned int id) {
+BankAccount* getAccountById(Bank* bank, unsigned int id) {
     for(int i = 0; i < bank->registeredAccounts; i++) {
-        struct BankAccount* account = bank->accounts[i];
+        BankAccount* account = bank->accounts[i];
         if(account->id == id) {
             return account;
         }
@@ -306,7 +375,15 @@ struct BankAccount* getAccountById(struct Bank* bank, unsigned int id) {
     return NULL;
 }
 
-char* getBankDetails(struct Bank* bank) {
+BankAccount* getAccountByCustomer(Bank* bank, Customer* customer) {
+    if(customer == NULL || bank == NULL) {
+        printf("Please use a valid bank and customer!\n");
+        return NULL;
+    }
+    return getAccountByOwnerDetails(bank, customer->firstName, customer->lastName, customer->dateOfBirth);
+}
+
+char* getBankDetails(Bank* bank) {
     char* detailsString = malloc(15);
     sprintf(detailsString, "Name=%s\n", bank->name);
 
@@ -331,8 +408,8 @@ char* getBankDetails(struct Bank* bank) {
     strcat(detailsString, "[");
     for(int i = 0; i < bank->registeredAccounts; i++) {
         strcat(detailsString, "{");
-        struct BankAccount* account = bank->accounts[i];
-        struct Customer* owner = account->owner;
+        BankAccount* account = bank->accounts[i];
+        Customer* owner = account->owner;
 
         allocate = 200;
         char* accountStr = malloc(allocate);
@@ -357,7 +434,7 @@ char* getBankDetails(struct Bank* bank) {
     return detailsString;
 }
 
-void saveBankToFile(struct Bank* bank) {
+void saveBankToFile(Bank* bank) {
     FILE* out = fopen(bank->name, "w");
     fputs(getBankDetails(bank), out);
     fclose(out);
@@ -382,22 +459,34 @@ void getValueFromBankString(const char* bankName, const char* valueName) {
     char* bankFile = readFromFile(bankName);
 }
 
+/**
+ * Returns transactions of a given customer
+ * @param customer
+ * @return List of Transactions
+ */
+Transaction** getTransactionsByCustomer(Bank* bank, Customer* customer) {
+    return getAccountByCustomer(bank, customer)->transactions;
+}
+
 int main(void) {
-    struct Bank* bank = createBank("Sparkasse", 3, 100);
-    struct Customer* marcel = createCustomer("Marcel", "K", createDate(1, 7, 2002), 450);
-    struct Customer* anna = createCustomer("Penis", "Kopf", createDate(28, 3, 1990), 0);
+    Bank* bank = createBank("Sparkasse", 3, 100);
+    Bank* secondBank = createBank("Volksbank", 2, 20);
+    Customer* marcel = createCustomer("Marcel", "K", createDate(1, 7, 2002), 450);
+    Customer* penis = createCustomer("Penis", "Kopf", createDate(28, 3, 1990), 0);
 
     createBankAccount(bank, marcel);
-    createBankAccount(bank, anna);
+    createBankAccount(secondBank, penis);
 
-    updateBalance(bank->accounts[0], 10);
+    createTransaction(getAccountByCustomer(bank, marcel), getAccountByCustomer(secondBank, penis), 20, "Hallo");
 
-    printf("%s\n", getBankDetails(bank));
+    printf("%s\n", transactionAsString(bank->accounts[0]->transactions[0]));
 
     saveBankToFile(bank);
+    saveBankToFile(secondBank);
 
-    free(anna);
+    free(penis);
     free(marcel);
     free(bank);
+    free(secondBank);
     return 0;
 }
